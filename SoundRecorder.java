@@ -1,6 +1,7 @@
 import javax.media.*;
 
 import javax.swing.*;
+import java.awt.FileDialog;
 import java.awt.Graphics;
 import java.awt.event.KeyEvent;
 
@@ -11,19 +12,30 @@ import java.net.MalformedURLException;
 
 public class SoundRecorder extends JPanel
 {
-	//GUI Component classes
-	JMenuBar topMenuBar;
+	/* JMF classes  */
+	private Player audioPlayer = null;
+	/* END JMF classes */
+
+	/* GUI Component classes  */
+	private JMenuBar topMenuBar = null;
+	/* END GUI Component classes */
+	
+	private enum PlayerState
+	{
+		INVALID_STATE,
+		MEDIA_LOADED,
+		MEDIA_PLAYING
+	}
 
 	public SoundRecorder(JMenuBar newBar)
 	{
 		topMenuBar = newBar;
-
-		//add menus to topMenuBar
 		{
 			JMenu fileMenu = new JMenu("File");
 			fileMenu.setMnemonic(KeyEvent.VK_F);
+			JMenuItem openFile = new JMenuItem("Open Media...");
 			topMenuBar.add(fileMenu);
-			
+
 			JMenu editMenu = new JMenu("Edit");
 			editMenu.setMnemonic(KeyEvent.VK_E);
 			topMenuBar.add(editMenu);
@@ -38,11 +50,15 @@ public class SoundRecorder extends JPanel
 		}
 	} //constructor
 	
-	public void paint(Graphics g)
+	private void openAudioFile() throws java.io.IOException, java.net.MalformedURLException, javax.media.MediaException
 	{
-		//
+		FileDialog fd = new FileDialog ((JFrame)getParent(), "Open media file...", FileDialog.LOAD);
+		fd.setVisible(true);
+		File f = new File(fd.getDirectory(), fd.getFile());
+		
+		audioPlayer = Manager.createRealizedPlayer(f.toURI().toURL());
 	}
-	
+
 	public static void main(String[] args)
 	{
 		JMenuBar bar = new JMenuBar();
