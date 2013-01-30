@@ -1,0 +1,7 @@
+BUILD NOTES:
+-----------------
+
+1) To build a class with JMF you need the following in cmd
+      $ javac -cp custom.jar YourJavaProgram.java
+
+2) Running compiled code doesn't need any javac magic.
