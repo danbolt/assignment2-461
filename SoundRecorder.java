@@ -3,6 +3,7 @@ import javax.media.*;
 import javax.swing.*;
 import java.awt.FileDialog;
 import java.awt.Graphics;
+import java.awt.Dimension;
 import java.awt.BorderLayout;
 import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
@@ -15,20 +16,21 @@ import java.net.MalformedURLException;
 
 public class SoundRecorder extends JPanel implements ActionListener
 {
-	/* JMF classes  */
-	private Player audioPlayer = null;
-	/* END JMF classes */
-
-	/* GUI Component classes  */
-	private JMenuBar topMenuBar = null;
-	/* END GUI Component classes */
-	
 	private enum PlayerState
 	{
 		INVALID_STATE,
+		NO_MEDIA_LOADED,
 		MEDIA_LOADED,
 		MEDIA_PLAYING
 	}
+
+	/* JMF classes  */
+	private Player audioPlayer = null;
+
+	/* GUI Component classes  */
+	private JMenuBar topMenuBar = null;
+	
+	private PlayerState state = PlayerState.INVALID_STATE;
 
 	public SoundRecorder(JMenuBar newBar)
 	{
@@ -56,68 +58,117 @@ public class SoundRecorder extends JPanel implements ActionListener
 		}
 		
 		setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-
+		
+		JPanel topSection = new JPanel();
+		topSection.setLayout(new BoxLayout(topSection, BoxLayout.X_AXIS));
+		JPanel bottomSection = new JPanel();
+		bottomSection.setLayout(new BoxLayout(bottomSection, BoxLayout.X_AXIS));
+		
+		JLabel leftText = new JLabel("LEFT TEXT");
+		leftText.setPreferredSize(new Dimension(100, 70));
+		JLabel rightText = new JLabel("RIGHT TEXT");
+		rightText.setPreferredSize(new Dimension(100, 70));
 		JSlider audioSlider = new JSlider(0, 1000, 0);
-		add(audioSlider);
+		topSection.add(leftText);
+		topSection.add(audioSlider);
+		topSection.add(rightText);
 		
 		JButton button;
 		button = new JButton("Play");
 		button.setActionCommand("playSong");
 		button.addActionListener(this);
-		add(button);
-                button = new JButton("Stop");
-                button.setActionCommand("stopSong");
+		bottomSection.add(button);
+                button = new JButton("Pause");
+                button.setActionCommand("pauseSong");
                 button.addActionListener(this);
-		add(button);
+		bottomSection.add(button);
 		button = new JButton("Forward");
 		button.setActionCommand("fastForward");
 		button.addActionListener(this);
-		add(button);
+		bottomSection.add(button);
 		button = new JButton("Rewind");
 		button.setActionCommand("rewind");
 		button.addActionListener(this);
-		add(button);
+		bottomSection.add(button);
 		button = new JButton("Record");
 		button.setActionCommand("startRecording");
 		button.addActionListener(this);
-		add(button);
+		bottomSection.add(button);
+		
+		add(topSection);
+		add(bottomSection);
+		
+		state = PlayerState.NO_MEDIA_LOADED;
 	} //constructor
 
 	public void actionPerformed(ActionEvent ex)
 	{
+		if ("openFile".equals(ex.getActionCommand()))
+		{
+			openMediaFile();
+		}
+		else if ("playSong".equals(ex.getActionCommand()))
+		{
+			playMediaFile();
+		}
+		else if ("pauseSong".equals(ex.getActionCommand()))
+		{
+			pauseMediaFile();
+		}
+		else
+		{
+			System.out.println("'" + ex.getActionCommand() + "' has not been initalized yet");
+		}
+	} //actionPerformed
+
+	private void openMediaFile()
+	{
 		try
 		{
-			if ("openFile".equals(ex.getActionCommand()))
-			{
-				openAudioFile();
-			}
-			else if ("playSong".equals(ex.getActionCommand()))
-			{
-				audioPlayer.start();
-			}
-			else if ("stopSong".equals(ex.getActionCommand()))
-			{
-				audioPlayer.stop();
-			}
-			else
-			{
-				System.out.println("'" + ex.getActionCommand() + "' has not been initalized yet");
-			}
+			FileDialog fd = new FileDialog ((JFrame)(SwingUtilities.getWindowAncestor(this)), "Open media file...", FileDialog.LOAD);
+			fd.setVisible(true);
+			File f = new File(fd.getDirectory(), fd.getFile());
+			
+			audioPlayer = Manager.createRealizedPlayer(f.toURI().toURL());
+			
+			state = PlayerState.MEDIA_LOADED;
 		}
 		catch (Exception e)
 		{
 			e.printStackTrace();
 		}
-	} //actionPerformed
-
-	private void openAudioFile() throws java.io.IOException, java.net.MalformedURLException, javax.media.MediaException
-	{
-		FileDialog fd = new FileDialog ((JFrame)(SwingUtilities.getWindowAncestor(this)), "Open media file...", FileDialog.LOAD);
-		fd.setVisible(true);
-		File f = new File(fd.getDirectory(), fd.getFile());
-		
-		audioPlayer = Manager.createRealizedPlayer(f.toURI().toURL());
 	} //openAudioFile
+	
+	/* if a file is loaded and not playing, it will be played */
+	private void playMediaFile()
+	{
+		if (state == PlayerState.MEDIA_LOADED)
+		{
+			audioPlayer.start();
+			
+			state = PlayerState.MEDIA_PLAYING;
+		}
+	}
+	
+	private void pauseMediaFile()
+	{
+		if (state == PlayerState.MEDIA_PLAYING)
+		{
+			audioPlayer.stop();
+
+			state = PlayerState.MEDIA_LOADED;
+		}
+	}
+
+	private void stopMediaFile()
+	{
+		if (state == PlayerState.MEDIA_PLAYING)
+		{
+			audioPlayer.stop();
+
+			state = PlayerState.MEDIA_LOADED;
+		}
+	}
 
 	public static void main(String[] args)
 	{
@@ -127,7 +178,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 		
 		applicationFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		applicationFrame.setJMenuBar(bar);
-		applicationFrame.setSize(350, 200);
+		applicationFrame.setSize(500, 200);
 		applicationFrame.setTitle("Sound Tool");
 		applicationFrame.setResizable(false);
 		applicationFrame.setLocation(300, 300);
