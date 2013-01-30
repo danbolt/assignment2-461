@@ -1,5 +1,7 @@
 import javax.media.*;
 
+import java.lang.Thread;
+
 import javax.swing.*;
 import java.awt.FileDialog;
 import java.awt.Graphics;
@@ -8,6 +10,7 @@ import java.awt.BorderLayout;
 import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.text.DecimalFormat;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,13 +27,18 @@ public class SoundRecorder extends JPanel implements ActionListener
 		MEDIA_PLAYING
 	}
 
-	/* JMF classes  */
+	/* JMF stuff  */
 	private Player audioPlayer = null;
+	private final int sliderMax = 1000;
 
 	/* GUI Component classes  */
 	private JMenuBar topMenuBar = null;
-	
+	private JSlider slider = null;
+	private JLabel leftText = null;
+	private JLabel rightText = null;
+
 	private PlayerState state = PlayerState.INVALID_STATE;
+
 
 	public SoundRecorder(JMenuBar newBar)
 	{
@@ -64,13 +72,11 @@ public class SoundRecorder extends JPanel implements ActionListener
 		JPanel bottomSection = new JPanel();
 		bottomSection.setLayout(new BoxLayout(bottomSection, BoxLayout.X_AXIS));
 		
-		JLabel leftText = new JLabel("LEFT TEXT");
-		leftText.setPreferredSize(new Dimension(100, 70));
-		JLabel rightText = new JLabel("RIGHT TEXT");
-		rightText.setPreferredSize(new Dimension(100, 70));
-		JSlider audioSlider = new JSlider(0, 1000, 0);
+		leftText = new JLabel("LEFT TEXT");
+		rightText = new JLabel("RIGHT TEXT");
+		slider = new JSlider(0, sliderMax, sliderMax/2);
 		topSection.add(leftText);
-		topSection.add(audioSlider);
+		topSection.add(slider);
 		topSection.add(rightText);
 		
 		JButton button;
@@ -97,8 +103,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 		
 		add(topSection);
 		add(bottomSection);
-		
+
 		state = PlayerState.NO_MEDIA_LOADED;
+
+		new Thread(new Updater(this)).start();
 	} //constructor
 
 	public void actionPerformed(ActionEvent ex)
@@ -169,6 +177,14 @@ public class SoundRecorder extends JPanel implements ActionListener
 			state = PlayerState.MEDIA_LOADED;
 		}
 	}
+	
+	public void updateGUI(Time currentSpot, Time currentDuration, float sliderPosition)
+	{
+		leftText.setText(((int)currentSpot.getSeconds() / 60) + ":" + ((int)currentSpot.getSeconds() % 60));
+		rightText.setText(((int)currentDuration.getSeconds() / 60) + ":" + ((int)currentDuration.getSeconds() % 60));
+		slider.setValue((int)(sliderPosition * sliderMax));
+		repaint();
+	}
 
 	public static void main(String[] args)
 	{
@@ -185,5 +201,44 @@ public class SoundRecorder extends JPanel implements ActionListener
 		applicationFrame.pack();
 		applicationFrame.setVisible(true);
 	} //main
+
+	private class Updater implements Runnable
+	{
+		private SoundRecorder recorder = null;
+		
+		public Updater(SoundRecorder newRecorder)
+		{
+			recorder = newRecorder;
+		}
+
+		public void run()
+		{
+			while(true)
+			{
+				if (recorder.state == PlayerState.INVALID_STATE)
+				{
+					System.out.println("INVALID STATE");
+					continue;
+				}
+				else if (recorder.state == PlayerState.MEDIA_LOADED)
+				{
+					recorder.updateGUI(recorder.audioPlayer.getMediaTime(), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
+				}
+				else if (recorder.state == PlayerState.MEDIA_PLAYING)
+				{
+					recorder.updateGUI(recorder.audioPlayer.getMediaTime(), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
+				}
+
+				try
+				{
+					Thread.sleep(100);
+				}
+				catch (Exception e)
+				{
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 
 } //SoundRecorder class
