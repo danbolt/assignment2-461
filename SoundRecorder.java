@@ -45,18 +45,23 @@ public class SoundRecorder extends JPanel implements ActionListener
 	private final int sliderMax = 1000;
 	
 	/* Data co-related with recording */
-	Processor p = null;
-	DataSource source = null;
-	CaptureDeviceInfo di = null;
-	DataSink filewriter = null;
-	static int duration = 0;
-	static String MediaFileName = "";
+	private Processor p = null;
+	private DataSource source = null;
+	private CaptureDeviceInfo di = null;
+	private DataSink filewriter = null;
+	private static int duration = 0;
+	private static String MediaFileName = "";
 
 	/* GUI Component classes  */
 	private JMenuBar topMenuBar = null;
 	private JSlider slider = null;
 	private JLabel leftText = null;
 	private JLabel rightText = null;
+	private JButton playButton = null;
+        private JButton stopButton = null;
+        private JButton fastForwardButton = null;
+        private JButton rewindButton = null;
+        private JButton recordButton = null;
 
 	private PlayerState state = PlayerState.INVALID_STATE;
 
@@ -104,34 +109,33 @@ public class SoundRecorder extends JPanel implements ActionListener
 		
 		leftText = new JLabel("0:0", SwingConstants.CENTER);
 		rightText = new JLabel("0:0", SwingConstants.CENTER);
-		leftText.setBorder(BorderFactory.createLineBorder(Color.black));
-		rightText.setBorder(BorderFactory.createLineBorder(Color.black));
-		slider = new JSlider(0, sliderMax, sliderMax/2);
+		leftText.setBorder(BorderFactory.createLoweredBevelBorder());
+		rightText.setBorder(BorderFactory.createLoweredBevelBorder());
+		slider = new JSlider(0, sliderMax, 0);
 		topSection.add(leftText);
 		topSection.add(slider);
 		topSection.add(rightText);
-		
-		JButton button;
-		button = new JButton("Play");
-		button.setActionCommand("playSong");
-		button.addActionListener(this);
-		bottomSection.add(button);
-                button = new JButton("Stop");
-                button.setActionCommand("stopSong");
-                button.addActionListener(this);
-		bottomSection.add(button);
-		button = new JButton("Forward");
-		button.setActionCommand("fastForward");
-		button.addActionListener(this);
-		bottomSection.add(button);
-		button = new JButton("Rewind");
-		button.setActionCommand("rewind");
-		button.addActionListener(this);
-		bottomSection.add(button);
-		button = new JButton("Record");
-		button.setActionCommand("startRecording");
-		button.addActionListener(this);
-		bottomSection.add(button);
+
+		playButton = new JButton("Play");
+		playButton.setActionCommand("playSong");
+		playButton.addActionListener(this);
+		bottomSection.add(playButton);
+                stopButton = new JButton("Stop");
+                stopButton.setActionCommand("stopSong");
+                stopButton.addActionListener(this);
+		bottomSection.add(stopButton);
+		fastForwardButton = new JButton("Forward");
+		fastForwardButton.setActionCommand("fastForward");
+		fastForwardButton.addActionListener(this);
+		bottomSection.add(fastForwardButton);
+		rewindButton = new JButton("Rewind");
+		rewindButton.setActionCommand("rewind");
+		rewindButton.addActionListener(this);
+		bottomSection.add(rewindButton);
+		recordButton = new JButton("Record");
+		recordButton.setActionCommand("startRecording");
+		recordButton.addActionListener(this);
+		bottomSection.add(recordButton);
 		
 		add(topSection);
 		add(bottomSection);
@@ -186,37 +190,6 @@ public class SoundRecorder extends JPanel implements ActionListener
 		
 		//Get the data output so we can output it to a file
 		source = p.getDataOutput();
-		
-		// create a File protocol MediaLocator with the location of the
-		// file to which the data is to be written
-		try
-		{
-			MediaLocator dest = new MediaLocator("file://"+MediaFileName);
-			// create a datasink to do the file writing
-			filewriter = Manager.createDataSink(source, dest);
-		}
-		catch (NoDataSinkException ex)
-		{
-			System.out.println("error1");
-			System.exit(-1);
-		}
-		catch (SecurityException ex)
-		{
-			System.out.println("error3");
-			System.exit(-1);
-		}
-
-	
-		// if the Processor implements StreamWriterControl, we can
-		// call setStreamSizeLimit
-		// to set a limit on the size of the file that is written.
-		StreamWriterControl swc = (StreamWriterControl)
-		p.getControl("javax.media.control.StreamWriterControl");
-		//set limit to 5MB
-		if (swc != null)
-		{
-			swc.setStreamSizeLimit(5000000);
-		}
 	}
 	
 	/* ---- THIS METHOD waitForState(Player, int) was not written by Daniel Savage.
@@ -292,7 +265,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 		}
 		else if ("startRecording".equals(ex.getActionCommand()))
 		{
-			System.out.println("START RECORDING FOOL!");
+			startRecording();
 		}
 		else
 		{
@@ -356,6 +329,35 @@ public class SoundRecorder extends JPanel implements ActionListener
 
 			state = PlayerState.MEDIA_LOADED;
 		}
+		else if (state == PlayerState.RECORDING)
+		{
+			p.stop();
+			p.close();
+			
+			try
+			{
+				//exhaust buffer
+				Thread.sleep(1000);
+			}
+			catch (Exception e)
+			{
+				//
+			}
+			
+			try
+			{
+				//Stop recording to the file and close it
+				filewriter.stop();
+			}
+			catch (Exception e)
+			{
+				state = PlayerState.INVALID_STATE;
+			}
+
+			filewriter.close();
+			
+			state = PlayerState.NO_MEDIA_LOADED;
+		}
 	}
 	
 	private void fastForwardMediaFile()
@@ -382,8 +384,122 @@ public class SoundRecorder extends JPanel implements ActionListener
 		}
 	}
 	
+	private void startRecording()
+	{
+		if (state == PlayerState.MEDIA_PLAYING || state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE)
+		{
+			audioPlayer.stop();
+			audioPlayer.setMediaTime(new Time(0));
+			audioPlayer.close();
+		}
+
+		state = PlayerState.RECORDING;
+
+		FileDialog fd = new FileDialog((JFrame)(SwingUtilities.getWindowAncestor(this)), "Save recorded file to...", FileDialog.SAVE);
+		fd.setVisible(true);
+		File f = new File(fd.getDirectory(), fd.getFile());
+		System.out.println("fd.getDirectory(): " + fd.getDirectory());
+                System.out.println("fd.getFile(): " + fd.getFile());
+                MediaFileName = fd.getDirectory() + fd.getFile();
+		
+		// create a File protocol MediaLocator with the location of the
+		// file to which the data is to be written
+		try
+		{
+			MediaLocator dest = new MediaLocator("file://"+MediaFileName);
+			// create a datasink to do the file writing
+			filewriter = Manager.createDataSink(source, dest);
+		}
+		catch (NoDataSinkException ex)
+		{
+			System.out.println("error1");
+			System.exit(-1);
+		}
+		catch (SecurityException ex)
+		{
+			System.out.println("error3");
+			System.exit(-1);
+		}
+
+		StreamWriterControl swc = (StreamWriterControl)
+		p.getControl("javax.media.control.StreamWriterControl");
+
+		if (swc != null)
+		{
+			swc.setStreamSizeLimit(5000000);
+		}
+
+		p.start();
+
+		try
+		{
+			filewriter.open();
+			filewriter.start();
+		}
+		catch (Exception e)
+		{
+			state = PlayerState.INVALID_STATE;
+		}
+	}
+	
 	public void updateGUI(Time currentSpot, Time currentDuration, float sliderPosition)
 	{
+		// update button enabling
+		switch (state)
+		{
+			case INVALID_STATE:
+			playButton.setEnabled(false);
+			stopButton.setEnabled(false);
+			fastForwardButton.setEnabled(false);
+			rewindButton.setEnabled(false);
+			recordButton.setEnabled(false);
+			break;
+			case NO_MEDIA_LOADED:
+			playButton.setEnabled(false);
+			stopButton.setEnabled(false);
+			fastForwardButton.setEnabled(false);
+			rewindButton.setEnabled(false);
+			recordButton.setEnabled(true);
+			break;
+			case MEDIA_LOADED:
+			playButton.setEnabled(true);
+			stopButton.setEnabled(false);
+			fastForwardButton.setEnabled(true);
+			rewindButton.setEnabled(true);
+			recordButton.setEnabled(true);
+			break;
+			case MEDIA_PLAYING:
+			playButton.setEnabled(false);
+			stopButton.setEnabled(true);
+			fastForwardButton.setEnabled(true);
+			rewindButton.setEnabled(true);
+			recordButton.setEnabled(false);
+			break;
+			case MEDIA_PLAYING_FORWARD:
+			playButton.setEnabled(true);
+			stopButton.setEnabled(true);
+			fastForwardButton.setEnabled(false);
+			rewindButton.setEnabled(true);
+			recordButton.setEnabled(false);
+			break;
+			case MEDIA_PLAYING_REVERSE:
+			playButton.setEnabled(true);
+			stopButton.setEnabled(true);
+			fastForwardButton.setEnabled(true);
+			rewindButton.setEnabled(false);
+			recordButton.setEnabled(false);
+			break;
+			case RECORDING:
+			playButton.setEnabled(false);
+			stopButton.setEnabled(true);
+			fastForwardButton.setEnabled(false);
+			rewindButton.setEnabled(false);
+			recordButton.setEnabled(false);
+			break;
+			default:
+			break;
+		}
+
 		leftText.setText("Position: " + ((int)currentSpot.getSeconds() / 60) + ":" + ((int)currentSpot.getSeconds() % 60));
 		rightText.setText("Length: " + ((int)currentDuration.getSeconds() / 60) + ":" + ((int)currentDuration.getSeconds() % 60));
 		slider.setValue((int)(sliderPosition * sliderMax));
@@ -430,12 +546,16 @@ public class SoundRecorder extends JPanel implements ActionListener
 				}
 				else if (recorder.state == PlayerState.MEDIA_LOADED)
 				{
-					recorder.updateGUI(recorder.audioPlayer.getMediaTime(), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
+					recorder.updateGUI(new Time(0), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
 				}
 				else if (recorder.state == PlayerState.MEDIA_PLAYING || recorder.state == PlayerState.MEDIA_PLAYING_FORWARD || recorder.state == PlayerState.MEDIA_PLAYING_REVERSE)
 				{
 					recorder.updateGUI(recorder.audioPlayer.getMediaTime(), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
 				}
+				else if (recorder.state == PlayerState.RECORDING)
+				{
+					recorder.updateGUI(recorder.p.getMediaTime(), new Time(0), 0.0f);
+				}	
 
 				try
 				{
