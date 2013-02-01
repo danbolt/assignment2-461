@@ -444,7 +444,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 	
 	public void updateGUI(Time currentSpot, Time currentDuration, float sliderPosition)
 	{
-		// update button enabling
+		leftText.setText("Position: " + ((int)currentSpot.getSeconds() / 60) + ":" + ((int)currentSpot.getSeconds() % 60));
+		rightText.setText("Length: " + ((int)currentDuration.getSeconds() / 60) + ":" + ((int)currentDuration.getSeconds() % 60));
+
 		switch (state)
 		{
 			case INVALID_STATE:
@@ -453,6 +455,8 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(false);
+			leftText.setText("Position: -:-");
+			rightText.setText("Length: -:-");
 			break;
 			case NO_MEDIA_LOADED:
 			playButton.setEnabled(false);
@@ -460,6 +464,8 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(true);
+			leftText.setText("Position: -:-");
+			rightText.setText("Length: -:-");
 			break;
 			case MEDIA_LOADED:
 			playButton.setEnabled(true);
@@ -495,13 +501,12 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(false);
+			rightText.setText("Length: -:-");
 			break;
 			default:
 			break;
 		}
 
-		leftText.setText("Position: " + ((int)currentSpot.getSeconds() / 60) + ":" + ((int)currentSpot.getSeconds() % 60));
-		rightText.setText("Length: " + ((int)currentDuration.getSeconds() / 60) + ":" + ((int)currentDuration.getSeconds() % 60));
 		slider.setValue((int)(sliderPosition * sliderMax));
 		repaint();
 	}
@@ -555,7 +560,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 				else if (recorder.state == PlayerState.RECORDING)
 				{
 					recorder.updateGUI(recorder.p.getMediaTime(), new Time(0), 0.0f);
-				}	
+				}
 
 				try
 				{
