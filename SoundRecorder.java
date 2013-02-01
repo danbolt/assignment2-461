@@ -84,7 +84,16 @@ public class SoundRecorder extends JPanel implements ActionListener
 			JMenuItem openFile = new JMenuItem("Open Media...");
 			openFile.setActionCommand("openFile");
 			openFile.addActionListener(this);
+			JMenuItem closeFile = new JMenuItem("Close Media...");
+			closeFile.setActionCommand("closeFile");
+			closeFile.addActionListener(this);
+			JMenuItem exitApp = new JMenuItem("Exit");
+			exitApp.setActionCommand("exit");
+			exitApp.addActionListener(this);
 			fileMenu.add(openFile);
+			fileMenu.add(closeFile);
+			fileMenu.addSeparator();
+			fileMenu.add(exitApp);
 			topMenuBar.add(fileMenu);
 
 			JMenu editMenu = new JMenu("Edit");
@@ -243,6 +252,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 		{
 			openMediaFile();
 		}
+		else if ("closeFile".equals(ex.getActionCommand()))
+		{
+			closeMediaFile();
+		}
 		else if ("playSong".equals(ex.getActionCommand()))
 		{
 			playMediaFile();
@@ -267,6 +280,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 		{
 			startRecording();
 		}
+		else if ("exit".equals(ex.getActionCommand()))
+		{
+			System.exit(0);
+		}
 		else
 		{
 			System.out.println("'" + ex.getActionCommand() + "' has not been initalized yet");
@@ -290,6 +307,19 @@ public class SoundRecorder extends JPanel implements ActionListener
 			e.printStackTrace();
 		}
 	} //openAudioFile
+	
+	private void closeMediaFile()
+	{
+		if (state == PlayerState.MEDIA_PLAYING || state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE)
+		{
+			audioPlayer.stop();
+			audioPlayer.close();
+		}
+
+		audioPlayer = null;
+		
+		state = PlayerState.NO_MEDIA_LOADED;
+	} //closeMediaFile()
 
 	private void playMediaFile()
 	{
