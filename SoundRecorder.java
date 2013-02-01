@@ -62,8 +62,13 @@ public class SoundRecorder extends JPanel implements ActionListener
         private JButton fastForwardButton = null;
         private JButton rewindButton = null;
         private JButton recordButton = null;
+        private JMenuItem speedUp = null;
+        private JMenuItem slowDown = null;
+        private JMenuItem resetSpeed = null;
 
 	private PlayerState state = PlayerState.INVALID_STATE;
+	
+	private int speed;
 
 	public SoundRecorder(JMenuBar newBar)
 	{
@@ -75,7 +80,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 		{
 			e.printStackTrace();
 			System.out.println("Error initalizing sound recorder");
+			System.exit(1);
 		}
+		
+		speed = 0;
 
 		topMenuBar = newBar;
 		{
@@ -95,13 +103,20 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fileMenu.addSeparator();
 			fileMenu.add(exitApp);
 			topMenuBar.add(fileMenu);
-
-			JMenu editMenu = new JMenu("Edit");
-			editMenu.setMnemonic(KeyEvent.VK_E);
-			topMenuBar.add(editMenu);
 			
 			JMenu optionsMenu = new JMenu("Options");
-			optionsMenu.setMnemonic(KeyEvent.VK_O);
+			speedUp = new JMenuItem("Increase speed by 5%");
+			speedUp.setActionCommand("speedUp");
+			speedUp.addActionListener(this);
+			slowDown = new JMenuItem("Decrease speed by 5%");
+			slowDown.setActionCommand("slowDown");
+			slowDown.addActionListener(this);
+			resetSpeed = new JMenuItem("Reset speed to normal");
+			resetSpeed.setActionCommand("resetSpeed");
+			resetSpeed.addActionListener(this);
+			optionsMenu.add(speedUp);
+			optionsMenu.add(slowDown);
+			optionsMenu.add(resetSpeed);
 			topMenuBar.add(optionsMenu);
 
 			JMenu helpMenu = new JMenu("Help");
@@ -280,6 +295,30 @@ public class SoundRecorder extends JPanel implements ActionListener
 		{
 			startRecording();
 		}
+		else if ("speedUp".equals(ex.getActionCommand()))
+		{
+			if (speed < 15)
+			{
+				speed++;
+			}
+			
+			playMediaFile();
+		}
+		else if ("slowDown".equals(ex.getActionCommand()))
+		{
+			if (speed > -15)
+			{
+				speed--;
+			}
+			
+			playMediaFile();	
+		}
+		else if ("resetSpeed".equals(ex.getActionCommand()))
+		{
+			speed = 0;
+			
+			playMediaFile();
+		}
 		else if ("exit".equals(ex.getActionCommand()))
 		{
 			System.exit(0);
@@ -325,17 +364,17 @@ public class SoundRecorder extends JPanel implements ActionListener
 	{
 		if (state == PlayerState.MEDIA_LOADED)
 		{
-			audioPlayer.setRate(1.0f);
+			audioPlayer.setRate(1.0f + (0.05f * speed));
 			audioPlayer.start();
 
 			state = PlayerState.MEDIA_PLAYING;
 		}
-		else if (state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE)
+		else if (state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE || state == PlayerState.MEDIA_PLAYING)
 		{
 			state = PlayerState.MEDIA_PLAYING;
 			
 			audioPlayer.stop();
-			audioPlayer.setRate(1.0f);
+			audioPlayer.setRate(1.0f + (0.05f * speed));
 			audioPlayer.start();
 		}
 	}
@@ -485,6 +524,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(false);
+			speedUp.setEnabled(false);
+			slowDown.setEnabled(false);
+			resetSpeed.setEnabled(false);
 			leftText.setText("Position: -:-");
 			rightText.setText("Length: -:-");
 			break;
@@ -494,6 +536,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(true);
+			speedUp.setEnabled(false);
+			slowDown.setEnabled(false);
+			resetSpeed.setEnabled(false);
 			leftText.setText("Position: -:-");
 			rightText.setText("Length: -:-");
 			break;
@@ -503,6 +548,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(true);
 			rewindButton.setEnabled(true);
 			recordButton.setEnabled(true);
+			speedUp.setEnabled(false);
+			slowDown.setEnabled(false);
+			resetSpeed.setEnabled(false);
 			break;
 			case MEDIA_PLAYING:
 			playButton.setEnabled(false);
@@ -510,6 +558,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(true);
 			rewindButton.setEnabled(true);
 			recordButton.setEnabled(false);
+			speedUp.setEnabled(true);
+			slowDown.setEnabled(true);
+			resetSpeed.setEnabled(true);
 			break;
 			case MEDIA_PLAYING_FORWARD:
 			playButton.setEnabled(true);
@@ -517,6 +568,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(true);
 			recordButton.setEnabled(false);
+			speedUp.setEnabled(false);
+			slowDown.setEnabled(false);
+			resetSpeed.setEnabled(false);
 			break;
 			case MEDIA_PLAYING_REVERSE:
 			playButton.setEnabled(true);
@@ -524,6 +578,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(true);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(false);
+			speedUp.setEnabled(false);
+			slowDown.setEnabled(false);
+			resetSpeed.setEnabled(false);
 			break;
 			case RECORDING:
 			playButton.setEnabled(false);
@@ -531,6 +588,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 			fastForwardButton.setEnabled(false);
 			rewindButton.setEnabled(false);
 			recordButton.setEnabled(false);
+			speedUp.setEnabled(false);
+			slowDown.setEnabled(false);
+			resetSpeed.setEnabled(false);
 			rightText.setText("Length: -:-");
 			break;
 			default:
