@@ -86,8 +86,8 @@ public class SoundRecorder extends JPanel implements ActionListener
 		button.setActionCommand("playSong");
 		button.addActionListener(this);
 		bottomSection.add(button);
-                button = new JButton("Pause");
-                button.setActionCommand("pauseSong");
+                button = new JButton("Stop");
+                button.setActionCommand("stopSong");
                 button.addActionListener(this);
 		bottomSection.add(button);
 		button = new JButton("Forward");
@@ -133,6 +133,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 		{
 			rewindMediaFile();
 		}
+		else if ("stopSong".equals(ex.getActionCommand()))
+		{
+			stopMediaFile();
+		}	
 		else
 		{
 			System.out.println("'" + ex.getActionCommand() + "' has not been initalized yet");
@@ -156,7 +160,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 			e.printStackTrace();
 		}
 	} //openAudioFile
-	
+
 	private void playMediaFile()
 	{
 		if (state == PlayerState.MEDIA_LOADED)
