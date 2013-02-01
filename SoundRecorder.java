@@ -24,7 +24,9 @@ public class SoundRecorder extends JPanel implements ActionListener
 		INVALID_STATE,
 		NO_MEDIA_LOADED,
 		MEDIA_LOADED,
-		MEDIA_PLAYING
+		MEDIA_PLAYING,
+		MEDIA_PLAYING_FORWARD,
+		MEDIA_PLAYING_REVERSE
 	}
 
 	/* JMF stuff  */
@@ -123,6 +125,14 @@ public class SoundRecorder extends JPanel implements ActionListener
 		{
 			pauseMediaFile();
 		}
+		else if ("fastForward".equals(ex.getActionCommand()))
+		{
+			fastForwardMediaFile();
+		}
+		else if ("rewind".equals(ex.getActionCommand()))
+		{
+			rewindMediaFile();
+		}
 		else
 		{
 			System.out.println("'" + ex.getActionCommand() + "' has not been initalized yet");
@@ -147,20 +157,28 @@ public class SoundRecorder extends JPanel implements ActionListener
 		}
 	} //openAudioFile
 	
-	/* if a file is loaded and not playing, it will be played */
 	private void playMediaFile()
 	{
 		if (state == PlayerState.MEDIA_LOADED)
 		{
+			audioPlayer.setRate(1.0f);
 			audioPlayer.start();
-			
+
 			state = PlayerState.MEDIA_PLAYING;
+		}
+		else if (state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE)
+		{
+			state = PlayerState.MEDIA_PLAYING;
+			
+			audioPlayer.stop();
+			audioPlayer.setRate(1.0f);
+			audioPlayer.start();
 		}
 	}
 	
 	private void pauseMediaFile()
 	{
-		if (state == PlayerState.MEDIA_PLAYING)
+		if (state == PlayerState.MEDIA_PLAYING || state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE)
 		{
 			audioPlayer.stop();
 
@@ -173,8 +191,33 @@ public class SoundRecorder extends JPanel implements ActionListener
 		if (state == PlayerState.MEDIA_PLAYING)
 		{
 			audioPlayer.stop();
+			audioPlayer.setMediaTime(new Time(0));
 
 			state = PlayerState.MEDIA_LOADED;
+		}
+	}
+	
+	private void fastForwardMediaFile()
+	{
+		if (state == PlayerState.MEDIA_PLAYING || state == PlayerState.MEDIA_PLAYING_REVERSE)
+		{
+			state = PlayerState.MEDIA_PLAYING_FORWARD;
+			
+			audioPlayer.stop();
+			audioPlayer.setRate(1.5f);
+			audioPlayer.start();
+		}
+	}
+	
+	private void rewindMediaFile()
+	{
+		if (state == PlayerState.MEDIA_PLAYING || state == PlayerState.MEDIA_PLAYING_FORWARD)
+		{
+			state = PlayerState.MEDIA_PLAYING_REVERSE;
+			
+			audioPlayer.stop();
+			audioPlayer.setRate(-2.5f);
+			audioPlayer.start();
 		}
 	}
 	
@@ -224,7 +267,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 				{
 					recorder.updateGUI(recorder.audioPlayer.getMediaTime(), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
 				}
-				else if (recorder.state == PlayerState.MEDIA_PLAYING)
+				else if (recorder.state == PlayerState.MEDIA_PLAYING || recorder.state == PlayerState.MEDIA_PLAYING_FORWARD || recorder.state == PlayerState.MEDIA_PLAYING_REVERSE)
 				{
 					recorder.updateGUI(recorder.audioPlayer.getMediaTime(), recorder.audioPlayer.getDuration(), (float)(recorder.audioPlayer.getMediaTime().getSeconds()/recorder.audioPlayer.getDuration().getSeconds()));
 				}
