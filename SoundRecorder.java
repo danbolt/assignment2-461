@@ -1,4 +1,8 @@
 import javax.media.*;
+import javax.media.format.AudioFormat;
+import javax.media.protocol.DataSource;
+import javax.media.protocol.FileTypeDescriptor;
+import javax.media.control.StreamWriterControl;
 
 import java.lang.Thread;
 
@@ -10,7 +14,13 @@ import java.awt.BorderLayout;
 import java.awt.event.KeyEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.Color;
 import java.text.DecimalFormat;
+import javax.swing.BorderFactory;
+import javax.swing.border.*;
+
+import java.util.Vector;
+import java.util.Date;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,12 +36,21 @@ public class SoundRecorder extends JPanel implements ActionListener
 		MEDIA_LOADED,
 		MEDIA_PLAYING,
 		MEDIA_PLAYING_FORWARD,
-		MEDIA_PLAYING_REVERSE
+		MEDIA_PLAYING_REVERSE,
+		RECORDING
 	}
 
 	/* JMF stuff  */
 	private Player audioPlayer = null;
 	private final int sliderMax = 1000;
+	
+	/* Data co-related with recording */
+	Processor p = null;
+	DataSource source = null;
+	CaptureDeviceInfo di = null;
+	DataSink filewriter = null;
+	static int duration = 0;
+	static String MediaFileName = "";
 
 	/* GUI Component classes  */
 	private JMenuBar topMenuBar = null;
@@ -41,9 +60,18 @@ public class SoundRecorder extends JPanel implements ActionListener
 
 	private PlayerState state = PlayerState.INVALID_STATE;
 
-
 	public SoundRecorder(JMenuBar newBar)
 	{
+		try
+		{
+			initCaptureDevice();
+		}
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			System.out.println("Error initalizing sound recorder");
+		}
+
 		topMenuBar = newBar;
 		{
 			JMenu fileMenu = new JMenu("File");
@@ -74,8 +102,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 		JPanel bottomSection = new JPanel();
 		bottomSection.setLayout(new BoxLayout(bottomSection, BoxLayout.X_AXIS));
 		
-		leftText = new JLabel("LEFT TEXT");
-		rightText = new JLabel("RIGHT TEXT");
+		leftText = new JLabel("0:0", SwingConstants.CENTER);
+		rightText = new JLabel("0:0", SwingConstants.CENTER);
+		leftText.setBorder(BorderFactory.createLineBorder(Color.black));
+		rightText.setBorder(BorderFactory.createLineBorder(Color.black));
 		slider = new JSlider(0, sliderMax, sliderMax/2);
 		topSection.add(leftText);
 		topSection.add(slider);
@@ -110,6 +140,129 @@ public class SoundRecorder extends JPanel implements ActionListener
 
 		new Thread(new Updater(this)).start();
 	} //constructor
+	
+	/* ---- THIS METHOD initCaptureDevice() was not written by Daniel Savage.
+	 * ---- It was taken from the SimpleAudioRecorder.java file provided on
+	 * ---- the Connex page.
+	 */
+	private void initCaptureDevice() throws Exception
+	{
+		//Query the device manager for available audio caputure devices which support
+		//linear, 44100Hz, 16 bit, stereo audio capture
+		Vector deviceList = CaptureDeviceManager.getDeviceList(new AudioFormat(AudioFormat.LINEAR, 44100, 16, 2));
+		if (deviceList.size() > 0)
+		{
+			di = (CaptureDeviceInfo)deviceList.firstElement();
+		}
+		else
+		{
+			// Exit if such a device is not found
+			System.exit(-1);
+		}
+
+		try
+		{
+			// Create a processor to convert from raw format to a file format
+			// Notice that we are NOT starting the datasources, but letting the
+			//  processor take care of this for us.
+			p = Manager.createProcessor(di.getLocator());
+		}
+		catch (NoProcessorException ex)
+		{
+			System.exit(-1);
+		}
+		
+		
+		//Configure the processor and wait till it is finished configuring
+		p.configure();
+		waitForState(p, Processor.Configured);
+		
+		//Set content descriptor - pay attention to what formats can go in what containers
+		p.setContentDescriptor(new FileTypeDescriptor(FileTypeDescriptor.WAVE));
+		
+		//Initiate realization of the processor and wait for it to be realized
+		p.realize();
+		waitForState(p, Processor.Realized);
+		
+		//Get the data output so we can output it to a file
+		source = p.getDataOutput();
+		
+		// create a File protocol MediaLocator with the location of the
+		// file to which the data is to be written
+		try
+		{
+			MediaLocator dest = new MediaLocator("file://"+MediaFileName);
+			// create a datasink to do the file writing
+			filewriter = Manager.createDataSink(source, dest);
+		}
+		catch (NoDataSinkException ex)
+		{
+			System.out.println("error1");
+			System.exit(-1);
+		}
+		catch (SecurityException ex)
+		{
+			System.out.println("error3");
+			System.exit(-1);
+		}
+
+	
+		// if the Processor implements StreamWriterControl, we can
+		// call setStreamSizeLimit
+		// to set a limit on the size of the file that is written.
+		StreamWriterControl swc = (StreamWriterControl)
+		p.getControl("javax.media.control.StreamWriterControl");
+		//set limit to 5MB
+		if (swc != null)
+		{
+			swc.setStreamSizeLimit(5000000);
+		}
+	}
+	
+	/* ---- THIS METHOD waitForState(Player, int) was not written by Daniel Savage.
+	 * ---- It was taken from the SimpleAudioRecorder.java file provided on
+	 * ---- the Connex page.
+	 */
+	private void waitForState(Player player, int state) {
+    	
+		// Fast abort if state is already the desired one
+    		if (player.getState() == state) {
+        		return;
+    		}
+
+    		long startTime = new Date().getTime(); //could also use System.currentTimeMillis()
+
+    		long timeout = 10 * 1000;
+
+    		final Object waitListener = new Object();
+
+    		ControllerListener cl = new ControllerListener() {
+
+        		public void controllerUpdate(ControllerEvent ce) {
+            			synchronized (waitListener) {
+                			waitListener.notifyAll();
+            			}
+        		}
+    		};
+    
+		try {
+        		player.addControllerListener(cl);
+
+        		// Make sure we wake up every 500ms to check for timeouts and in case we miss a signal
+        		synchronized (waitListener) {
+            			while (player.getState() != state && new Date().getTime() - startTime < timeout) {
+                			try {
+                    				waitListener.wait(500);
+                			} catch (InterruptedException ex) {
+                    				System.err.println("Interrupted Exception!");
+                			}
+            			}
+        		}
+    		} finally {
+        		// No matter what else happens, we want to remove this
+        		player.removeControllerListener(cl);
+    		}
+	}
 
 	public void actionPerformed(ActionEvent ex)
 	{
@@ -136,7 +289,11 @@ public class SoundRecorder extends JPanel implements ActionListener
 		else if ("stopSong".equals(ex.getActionCommand()))
 		{
 			stopMediaFile();
-		}	
+		}
+		else if ("startRecording".equals(ex.getActionCommand()))
+		{
+			System.out.println("START RECORDING FOOL!");
+		}
 		else
 		{
 			System.out.println("'" + ex.getActionCommand() + "' has not been initalized yet");
@@ -192,7 +349,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 
 	private void stopMediaFile()
 	{
-		if (state == PlayerState.MEDIA_PLAYING)
+		if (state == PlayerState.MEDIA_PLAYING || state == PlayerState.MEDIA_PLAYING_FORWARD || state == PlayerState.MEDIA_PLAYING_REVERSE)
 		{
 			audioPlayer.stop();
 			audioPlayer.setMediaTime(new Time(0));
@@ -227,8 +384,8 @@ public class SoundRecorder extends JPanel implements ActionListener
 	
 	public void updateGUI(Time currentSpot, Time currentDuration, float sliderPosition)
 	{
-		leftText.setText(((int)currentSpot.getSeconds() / 60) + ":" + ((int)currentSpot.getSeconds() % 60));
-		rightText.setText(((int)currentDuration.getSeconds() / 60) + ":" + ((int)currentDuration.getSeconds() % 60));
+		leftText.setText("Position: " + ((int)currentSpot.getSeconds() / 60) + ":" + ((int)currentSpot.getSeconds() % 60));
+		rightText.setText("Length: " + ((int)currentDuration.getSeconds() / 60) + ":" + ((int)currentDuration.getSeconds() % 60));
 		slider.setValue((int)(sliderPosition * sliderMax));
 		repaint();
 	}
@@ -241,7 +398,7 @@ public class SoundRecorder extends JPanel implements ActionListener
 		
 		applicationFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		applicationFrame.setJMenuBar(bar);
-		applicationFrame.setSize(500, 200);
+		applicationFrame.setSize(500, 300);
 		applicationFrame.setTitle("Sound Tool");
 		applicationFrame.setResizable(false);
 		applicationFrame.setLocation(300, 300);
@@ -266,6 +423,10 @@ public class SoundRecorder extends JPanel implements ActionListener
 				{
 					System.out.println("INVALID STATE");
 					continue;
+				}
+				else if (recorder.state == PlayerState.NO_MEDIA_LOADED)
+				{
+					recorder.updateGUI(new Time(0), new Time(0), 0.0f);
 				}
 				else if (recorder.state == PlayerState.MEDIA_LOADED)
 				{
